@@ -1,13 +1,13 @@
-package com.example.diaria_do_motorista.db
+package com.example.diaria_do_motorista.data.db.db.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.diaria_do_motorista.TokenStore
-import com.example.diaria_do_motorista.entity.DiariaEntity
-import com.example.diaria_do_motorista.entity.TransportadoraEntity
-import com.example.diaria_do_motorista.entity.UsuarioEntity
-import com.example.diaria_do_motorista.entity.VeiculoEntity
+import com.example.diaria_do_motorista.data.db.db.entity.DiariaEntity
+import com.example.diaria_do_motorista.data.db.db.entity.TransportadoraEntity
+import com.example.diaria_do_motorista.data.db.db.entity.UsuarioEntity
+import com.example.diaria_do_motorista.data.db.db.entity.VeiculoEntity
 
 @Database(
     entities = [

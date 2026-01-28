@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista.db
+package com.example.diaria_do_motorista.data.db.db.db
 
 class Converters {
     @TypeConverter

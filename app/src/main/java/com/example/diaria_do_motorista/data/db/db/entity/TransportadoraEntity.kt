@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista.entity
+package com.example.diaria_do_motorista.data.db.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
