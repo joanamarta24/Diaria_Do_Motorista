@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista
+package com.example.diaria_do_motorista.data.db.db
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
