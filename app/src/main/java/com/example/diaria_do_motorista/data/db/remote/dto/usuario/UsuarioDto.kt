@@ -12,4 +12,3 @@ data class UsuarioDto(
     val matriculaVeiculo:String? = null,
     val transportadoraId:String? = null,
 )
-data class
