@@ -4,6 +4,11 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.example.diaria_do_motorista.data.db.TokenStore
+import com.example.diaria_do_motorista.data.db.dao.DiariaDao
+import com.example.diaria_do_motorista.data.db.dao.TokenStoreDao
+import com.example.diaria_do_motorista.data.db.dao.TransportadoraDao
+import com.example.diaria_do_motorista.data.db.dao.UsuarioDao
+import com.example.diaria_do_motorista.data.db.dao.VeiculoDao
 import com.example.diaria_do_motorista.data.db.entity.DiariaEntity
 import com.example.diaria_do_motorista.data.db.entity.TransportadoraEntity
 import com.example.diaria_do_motorista.data.db.entity.UsuarioEntity

@@ -1,5 +1,10 @@
 package com.example.diaria_do_motorista.data.db.db
 
+import androidx.room.TypeConverter
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+
+
 class Converters {
     @TypeConverter
     fun fromTimestamp(value: Long?): LocalDateTime? {
