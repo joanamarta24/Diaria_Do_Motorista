@@ -3,9 +3,7 @@ package com.example.diaria_do_motorista.data.db.remote.api
 import com.example.diaria_do_motorista.data.db.remote.dto.usuario.UsuarioResponseDto
 import okhttp3.Response
 import retrofit2.http.GET
-import retrofit2.http.HEAD
 import retrofit2.http.Header
-import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -18,9 +16,11 @@ interface UsuarioApi {
         @Query ("page") page: Int = 0,
         @Query ("size") size: Int = 20
     ):Response<List<UsuarioResponseDto>>
-    @GET("usuario/{id}")
+
+    @GET("usuarios/{id}")
     suspend fun obterUsuarioPorId(
         @Header("Authorization") token: String,
-        @Path("id") id:String
-    )
+        @Path("id") id: String
+    ): Response<UsuarioResponseDto>
+
 }
