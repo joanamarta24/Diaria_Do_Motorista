@@ -18,6 +18,7 @@ import com.example.diaria_do_motorista.data.db.repository.DiariaRepository
 import com.example.diaria_do_motorista.data.db.repository.TransportadoraRepository
 import com.example.diaria_do_motorista.data.db.repository.UsuarioRepository
 import com.example.diaria_do_motorista.sync.exeptions.SyncException
+import com.example.diaria_do_motorista.sync.exeptions.sync.SyncManager
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.Dispatchers
