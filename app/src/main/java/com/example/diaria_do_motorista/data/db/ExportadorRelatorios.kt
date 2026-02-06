@@ -1,6 +1,7 @@
 package com.example.diaria_do_motorista.data.db
 
 import android.content.Context
+import com.example.diaria_do_motorista.data.db.domain.RelatorioDiarias
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import javax.inject.Inject

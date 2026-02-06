@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista.data.db.remote.dto
+package com.example.diaria_do_motorista.data.db.remote.api.dto
 
 data class UsuarioAuthResponse(
     val id:String,
