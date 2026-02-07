@@ -22,7 +22,7 @@ interface DiariaDao {
     suspend fun getId(id:String):DiariaEntity?
 
     @Query("SELECT *FROM diarias WHERE motoristaId = :motoristaId AND dataDiaria =:dataDiaria")
-    suspend fun getDiatiaDoDia(motoristaId: String, dataDiaria:String):DiariaEntity?
+    suspend fun getDiariaDoDia(motoristaId: String, dataDiaria:String):DiariaEntity?
 
     @Query("SELECT * FROM diarias WHERE sync_status = 'PENDETE'")
     suspend fun getPedentesSync():List<DiariaEntity>
