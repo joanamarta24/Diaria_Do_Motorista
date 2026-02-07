@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista.data.db.remote.api.dto.usuario
+package com.example.diaria_do_motorista.data.db.remote.dto.usuario
 
 import java.time.LocalDate
 

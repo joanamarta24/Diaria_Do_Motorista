@@ -1,6 +1,7 @@
 package com.example.diaria_do_motorista.data.db.mapper
 
 import com.example.diaria_do_motorista.data.db.domain.TipoUsuario
+import com.example.diaria_do_motorista.data.db.domain.Usuario
 import com.example.diaria_do_motorista.data.db.entity.UsuarioEntity
 
 object UsuarioMappers {

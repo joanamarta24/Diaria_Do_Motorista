@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista.data.db.remote.api.dto
+package com.example.diaria_do_motorista.data.db.remote.dto
 
 data class AuthResponse(
     val token:String,

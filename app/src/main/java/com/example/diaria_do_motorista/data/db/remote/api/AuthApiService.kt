@@ -1,10 +1,10 @@
 package com.example.diaria_do_motorista.data.db.remote.api
 
-import com.example.diaria_do_motorista.data.db.remote.api.dto.AuthResponse
-import com.example.diaria_do_motorista.data.db.remote.api.dto.TokenRefreshRequest
-import com.example.diaria_do_motorista.data.db.remote.api.dto.TokenRefreshResponse
-import com.example.diaria_do_motorista.data.db.remote.api.dto.usuario.UsuarioLoginDto
-import com.example.diaria_do_motorista.data.db.remote.api.dto.usuario.UsuarioSolicitarRedefinicaoSenhaDto
+import com.example.diaria_do_motorista.data.db.remote.dto.AuthResponse
+import com.example.diaria_do_motorista.data.db.remote.dto.TokenRefreshRequest
+import com.example.diaria_do_motorista.data.db.remote.dto.TokenRefreshResponse
+import com.example.diaria_do_motorista.data.db.remote.dto.usuario.UsuarioLoginDto
+import com.example.diaria_do_motorista.data.db.remote.dto.usuario.UsuarioSolicitarRedefinicaoSenhaDto
 import okhttp3.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
