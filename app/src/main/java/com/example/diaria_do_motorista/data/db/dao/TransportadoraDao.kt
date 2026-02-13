@@ -19,10 +19,10 @@ interface TransportadoraDao {
         ativo: Boolean? = null
     ): List<Transportadora>
 
-    suspend fun listarPorIds(ids: List<String>):
+    suspend fun listarPorIds(ids: List<String>): List<Transportadora>
 
     // Buscas específicas
-            suspend fun obterPorNome(nome: String): Transportadora?
+    suspend fun obterPorNome(nome: String): Transportadora?
     suspend fun obterPorEmail(email: String): Transportadora?
     suspend fun obterPorTelefone(telefone: String): Transportadora?
     suspend fun obterPorContatoResponsavel(contato: String): Transportadora?
