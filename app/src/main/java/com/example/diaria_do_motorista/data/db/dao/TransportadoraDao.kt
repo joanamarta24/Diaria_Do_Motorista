@@ -12,7 +12,7 @@ interface TransportadoraDao {
     suspend fun obterPorId(id: String): Transportadora?
 
     //CONSULTAS
-    fun listarTodos(): Flow<Transportadora>
+    fun listarTodos(): Flow<List<Transportadora>>
     suspend fun listarPorFiltros(
         nome: String? = null,
         status: TransportadoraStatus? = null,

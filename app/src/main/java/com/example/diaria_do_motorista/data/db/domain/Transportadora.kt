@@ -7,6 +7,7 @@ data class Transportadora(
     val nome: String,
     val contatoResponsavel: String,
     val dataAtualizada: LocalDateTime,
+    val dataCriacao: LocalDateTime,
     val telefone: String,
     val email: String? = null,
     val ativo: Boolean = true
