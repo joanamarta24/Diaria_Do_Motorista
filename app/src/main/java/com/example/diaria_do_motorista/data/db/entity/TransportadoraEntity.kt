@@ -3,6 +3,7 @@ package com.example.diaria_do_motorista.data.db.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.diaria_do_motorista.data.db.remote.enums.TransportadoraStatus
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -11,6 +12,7 @@ data class TransportadoraEntity(
     @PrimaryKey
     val id: String = UUID.randomUUID().toString(),
     val nome: String,
+    val status: TransportadoraStatus,
     val contatoResponsavel: String,
     val dataAtualizada: LocalDateTime,
     val dataCriacao: LocalDateTime,

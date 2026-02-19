@@ -65,7 +65,10 @@ interface TransportadoraDao {
     ): List<Transportadora>
 
     // Operações em lote
-    suspend fun salvarTodos(transportadoras: List<Transportadora>): List<Transportadora>
+    suspend fun salvarTodos(
+        transportadoras: List<Transportadora>
+    ): List<Transportadora>
+
     suspend fun atualizarStatusEmLote(ids: List<String>, status: TransportadoraStatus): Int
     suspend fun atualizarAtivoEmLote(ids: List<String>, ativo: Boolean): Int
 }
