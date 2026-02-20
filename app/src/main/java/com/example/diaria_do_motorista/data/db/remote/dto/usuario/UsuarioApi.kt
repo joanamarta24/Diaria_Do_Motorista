@@ -81,7 +81,7 @@ interface UsuarioApi {
     suspend fun alterarStatus(
         @Header("Authorization") token: String,
         @Path("id") id: Long,
-        @Body statusRequest: StatusRequest // Melhor que Query para PATCH
+        @Body statusRequest: StatusRequest// Melhor que Query para PATCH
     ): Response<Void>
 
     // DELETE

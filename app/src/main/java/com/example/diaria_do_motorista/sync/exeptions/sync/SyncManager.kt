@@ -1,6 +1,7 @@
 package com.example.diaria_do_motorista.sync.exeptions.sync
 
 import android.content.Context
+import android.provider.CalendarContract
 import androidx.work.WorkManager
 import com.example.diaria_do_motorista.data.db.db.AppDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -24,7 +25,7 @@ class SyncManager  @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.IO + Job())
 
     private val _syncState = MutableStateFlow<SyncState>(SyncState.IDLE)
-    val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
+    val syncState: StateFlow<CalendarContract.SyncState> = _syncState.asStateFlow()
 
     private val _lastSyncTime = MutableStateFlow<Long?>(null)
     val lastSyncTime: StateFlow<Long?> = _lastSyncTime.asStateFlow()
