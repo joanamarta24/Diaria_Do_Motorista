@@ -44,8 +44,7 @@ android {
 
 dependencies {
 
-
- 
+    implementation("io.github.mohamed-ie:uistate-android:0.0.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
