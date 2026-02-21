@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -20,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SearchBar
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -28,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.room.util.query
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,12 +107,28 @@ fun UsuariosListViewModel(
             }
         }
     }
+    // Diálogo de confirmação de exclusão
+    if (uiState.showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onDeleteConfirmationChanged(false) },
+            title = { Text("Confirmar exclusão") },
+            text = { Text("Tem certeza que deseja excluir este motorista?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            viewModel.deleteMotorista()
+                            viewModel.onDeleteConfirmationChanged(false)
+                        }
+                    }
+                ) {
+                    Text("Excluir")
+                }
+            },
+           dismissButton = {
+               TextButton() { }
+           }
 
-
-@Composable
-fun EmptyState(message: String, icon: Person) {
-    TODO("Not yet implemented")
-}
 
 @Composable
 fun MotoristaCard(
