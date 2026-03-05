@@ -78,7 +78,7 @@ abstract class TransportadoraDaoImpl : TransportadoraDao {
     @Query("SELECT * FROM transportadoras WHERE telefone = :telefone LIMIT 1")
     abstract override suspend fun obterPorTelefone(telefone: String): Transportadora?
 
-    @Query("SELECT * FROM transportadoras WHERE contato_responsavel = :contato LIMIT 1")
+    @Query("SELECT * FROM transportadoras WHERE contatoresponsavel = :contato LIMIT 1")
     abstract override suspend fun obterPorContatoResponsavel(contato: String): Transportadora?
 
     @Query("SELECT COUNT(*) FROM transportadoras WHERE id = :id")

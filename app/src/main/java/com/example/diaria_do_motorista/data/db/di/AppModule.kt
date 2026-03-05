@@ -1,7 +1,6 @@
 package com.example.diaria_do_motorista.data.db.di
 
 import android.content.Context
-import androidx.lifecycle.ViewModel
 import androidx.room.Room
 import com.example.diaria_do_motorista.data.db.dao.DiariaDao
 import com.example.diaria_do_motorista.data.db.dao.TokenStoreDao
