@@ -6,8 +6,10 @@ import com.example.diaria_do_motorista.data.db.dao.UsuarioDao
 import com.example.diaria_do_motorista.data.db.domain.TipoUsuario
 import com.example.diaria_do_motorista.data.db.domain.Usuario
 import com.example.diaria_do_motorista.data.db.mapper.UsuarioMappers.toEntity
+import com.example.diaria_do_motorista.data.db.mapper.UsuarioMappers.toUsuario
 import com.example.diaria_do_motorista.data.db.remote.api.AuthApiService
 import kotlinx.coroutines.withContext
+import com.example.diaria_do_motorista.util.DispatchersProvider
 import java.util.UUID
 import javax.inject.Inject
 
