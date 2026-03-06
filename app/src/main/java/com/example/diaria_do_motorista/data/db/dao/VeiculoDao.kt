@@ -1,12 +1,12 @@
 package com.example.diaria_do_motorista.data.db.dao
 
+import VeiculoEntity
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.diaria_do_motorista.data.db.entity.VeiculoEntity
 import com.example.diaria_do_motorista.data.db.remote.enums.VeiculosStatus
 import kotlinx.coroutines.flow.Flow
 
@@ -35,7 +35,7 @@ interface VeiculoDao {
     @Query("DELETE FROM veiculos WHERE transportadoraId = :transportadoraId")
     suspend fun deletarPorTransportadora(transportadoraId: Long): Int
 
-    @Query("DELETE FROM veiculos WHERE sync_status =:status")
+    @Query("DELETE FROM veiculos WHERE syncstatus =:status")
     suspend fun deletarPorStatusSync(status: VeiculosStatus): Int
 
     @Query("DELETE FROM veiculos")
@@ -62,5 +62,19 @@ interface VeiculoDao {
 
     @Query("SELECT COUNT(*) FROM veiculos")
     suspend fun contarVeiculos(): Int
+
+    //  FILTRONS POR TRANSPORTADORA
+    @Query("SELECT *  FROM veiculos WHERE transportadoraId = :transportadoraId ORDER BY placa ASC")
+    suspend fun getVeiculoPorTransportadora(transportadoraId: Long): Flow<VeiculoEntity>
+
+    @Query("SELECT * FROM veiculos WHERE transportadoraId = :transportadoraId ORDER BY placa ASC")
+    fun getVeiculosPorTransportadoraFloe(transportadoraId: Long): Flow<List<VeiculoEntity>>
+
+    @Query("SELECT COUNT(*) FROM veiculos WHERE transportadoraId = :transportadoraId")
+    suspend fun contarVeiculosPorTransportadora(transportadoraId: Long): Int
+
+    //FILTRONS POR STATUS
+
+
 
 }

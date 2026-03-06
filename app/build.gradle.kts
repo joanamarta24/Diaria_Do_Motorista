@@ -47,6 +47,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose")
     implementation(platform("androidx.compose:compose-bom:2024.02.00"))
+    implementation("com.github.binodnme:date-converter:1.0")
 
     // Compose
     implementation(platform("androidx.compose:compose-bom:2024.10.00"))

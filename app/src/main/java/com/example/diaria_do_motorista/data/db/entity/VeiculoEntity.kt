@@ -1,7 +1,9 @@
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import androidx.room.TypeConverters
+import com.example.diaria_do_motorista.data.db.remote.enums.SyncStatus
 import com.example.diaria_do_motorista.data.db.remote.enums.TipoVeiculo
+import com.github.binodnme.dateconverter.converter.DateConverter
 
 @Entity(tableName = "veiculos")
 @TypeConverters(DateConverter::class, TipoVeiculoConverter::class)
@@ -62,4 +64,5 @@ data class VeiculoEntity(
 
     // Metadados
     val observacoes: String? = null,
-    val fotosAdicionais: String? = null 
+    val fotosAdicionais: String? = null
+)

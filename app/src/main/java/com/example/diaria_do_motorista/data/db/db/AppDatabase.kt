@@ -12,7 +12,6 @@ import com.example.diaria_do_motorista.data.db.dao.VeiculoDao
 import com.example.diaria_do_motorista.data.db.entity.DiariaEntity
 import com.example.diaria_do_motorista.data.db.entity.TransportadoraEntity
 import com.example.diaria_do_motorista.data.db.entity.UsuarioEntity
-import com.example.diaria_do_motorista.data.db.entity.VeiculoEntity
 
 @Database(
     entities = [
