@@ -7,7 +7,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.example.diaria_do_motorista.data.db.remote.enums.SyncStatus
+import com.example.diaria_do_motorista.data.db.remote.enums.status.SyncStatus
 import com.example.diaria_do_motorista.data.db.remote.enums.TipoVeiculo
 import com.example.diaria_do_motorista.data.db.remote.enums.VeiculosStatus
 import kotlinx.coroutines.flow.Flow

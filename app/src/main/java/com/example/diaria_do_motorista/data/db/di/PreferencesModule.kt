@@ -2,6 +2,8 @@ package com.example.diaria_do_motorista.data.db.di
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,5 +30,17 @@ object PreferencesModule {
 
     @Provides
     @Singleton
-
+    fun provideEncryptedSharedPreferences(
+        @ApplicationContext context: Context,
+        @SharedPrefsName prefsName: String
+    ): SharedPreferences{
+        val masterKeyAlias = MasterKeys.getOnCreate(MasterKeys.AES256_GCM_SPEC)
+        return EncryptedSharedPreferences.create(
+            prefsName,
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 }

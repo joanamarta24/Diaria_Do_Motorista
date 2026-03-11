@@ -4,10 +4,7 @@ import com.example.diaria_do_motorista.data.db.di.ApplicationScope
 import com.example.diaria_do_motorista.data.db.di.DispatcherDefault
 import com.example.diaria_do_motorista.data.db.di.DispatcherIO
 import com.example.diaria_do_motorista.data.db.di.DispatcherUnconfined
-import com.seuapp.di.qualifiers.DispatcherDefault
-import com.seuapp.di.qualifiers.DispatcherIO
 import com.seuapp.di.qualifiers.DispatcherMain
-import com.seuapp.di.qualifiers.DispatcherUnconfined
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

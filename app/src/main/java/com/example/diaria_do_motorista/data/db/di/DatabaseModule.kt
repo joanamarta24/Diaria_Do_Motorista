@@ -6,9 +6,9 @@ import com.example.diaria_do_motorista.data.db.dao.DiariaDao
 import com.example.diaria_do_motorista.data.db.dao.TransportadoraDao
 import com.example.diaria_do_motorista.data.db.dao.UsuarioDao
 import com.example.diaria_do_motorista.data.db.dao.VeiculoDao
-import com.example.diaria_do_motorista.data.db.db.AppDatabase
 import com.example.diaria_do_motorista.data.db.di.DatabaseName
 import com.example.diaria_do_motorista.data.db.di.DatabaseVersion
+import com.seuapp.data.local.AppDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn

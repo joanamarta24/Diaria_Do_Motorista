@@ -44,6 +44,8 @@ android {
 }
 
 dependencies {
+    implementation("com.og.encryptedsharedpreferences:encryptedsharedpreferences:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -111,6 +113,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.adapters)
     implementation(libs.androidx.hilt.common)
+    implementation(libs.firebase.appdistribution.gradle)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
