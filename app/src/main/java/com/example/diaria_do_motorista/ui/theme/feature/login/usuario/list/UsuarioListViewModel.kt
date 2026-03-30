@@ -1,3 +1,6 @@
+package com.example.diaria_do_motorista.ui.theme.feature.login.usuario.list
+
+import android.util.Patterns
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -98,7 +101,7 @@ class UsuarioEditViewModel @Inject constructor(
         val email = uiState.value.email
         val error = when {
             email.isBlank() -> "E-mail é obrigatório"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "E-mail inválido"
+            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "E-mail inválido"
             else -> null
         }
         _uiState.update { it.copy(emailError = error) }
