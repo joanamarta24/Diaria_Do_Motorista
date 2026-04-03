@@ -7,7 +7,6 @@ import com.example.diaria_do_motorista.data.db.dao.TokenStoreDao
 import com.example.diaria_do_motorista.data.db.dao.TransportadoraDao
 import com.example.diaria_do_motorista.data.db.dao.UsuarioDao
 import com.example.diaria_do_motorista.data.db.dao.VeiculoDao
-import com.example.diaria_do_motorista.data.db.db.AppDatabase
 import com.example.diaria_do_motorista.data.db.repository.AuthRepository
 import com.example.diaria_do_motorista.data.db.repository.DiariaRepository
 import com.example.diaria_do_motorista.data.db.repository.UsuarioRepository
