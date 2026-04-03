@@ -14,6 +14,7 @@ import com.example.diaria_do_motorista.data.db.repository.UsuarioRepository
 import com.example.diaria_do_motorista.data.db.session.AuthStateViewModel
 import com.example.diaria_do_motorista.ui.theme.feature.login.home.HomeViewModel
 import com.example.diaria_do_motorista.ui.theme.feature.login.login.LoginViewModel
+import com.seuapp.data.local.AppDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
