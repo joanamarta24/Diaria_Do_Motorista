@@ -1,6 +1,6 @@
 package com.example.diaria_do_motorista.ui.theme.feature.login.relatorio
 
-import android.R
+import ExportFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +54,6 @@ import com.example.diaria_do_motorista.data.db.domain.RelatorioDiarias
 import com.example.diaria_do_motorista.data.db.domain.Transportadora
 import com.example.diaria_do_motorista.data.db.domain.Usuario
 import com.example.diaria_do_motorista.data.db.domain.Veiculo
-import com.example.diaria_do_motorista.data.db.remote.enums.ExportFormat
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

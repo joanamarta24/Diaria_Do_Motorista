@@ -1,5 +1,6 @@
 package com.example.diaria_do_motorista.ui.theme.feature.login.relatorio
 
+import ExportFormat
 import android.app.Application
 import android.content.Intent
 import androidx.core.content.FileProvider
@@ -7,7 +8,6 @@ import androidx.databinding.library.BuildConfig
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.diaria_do_motorista.data.db.ExportadorRelatorios
-import com.example.diaria_do_motorista.data.db.remote.enums.ExportFormat
 import com.example.diaria_do_motorista.data.db.repository.DiariaRepository
 import com.example.diaria_do_motorista.data.db.repository.UsuarioRepository
 import dagger.hilt.android.internal.Contexts.getApplication
@@ -18,11 +18,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.selects.select
+
 import java.io.File
 
 @HiltViewModel
-class RelatorioViewModel @Inject constructor(
+class  RelatorioViewModel @Inject constructor(
     private val diariaRepository: DiariaRepository,
     private val usuarioRepository: UsuarioRepository,
     private val exportadorRelatorios: ExportadorRelatorios
@@ -132,24 +132,37 @@ class RelatorioViewModel @Inject constructor(
             }
         }
     }
-        private fun exportarRelatorio(format: ExportFormat){
+        private fun exportarRelatorio(format: ExportFormat) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isExporting = true, exportFormat = format) }
-                val relatorio = uiState.value.relatorio
-                if (relatorio != null){
-                    val fileName = "relatorio_diarias_${System.currentTimeMillis()}"
-                    val file = when(format){
-                        ExportFormat.PDF -> exportarRelatorio.exportarRelatorioParaPDF(relatorio,fileName)
-                        ExportFormat.XLSX -> exportarRelatorio.exportarRelatorioParaXLSX(relatorio,fileName)
-                    }
-                    // Compartilhar o arquivo
-                    shareFile(file)
-                }
 
-                _uiState.update { it.copy(isExporting = false, exportFormat = null) }
+                try {
+                    val relatorio = uiState.value.relatorio
+                    if (relatorio != null) {
+                        val fileName = "relatorio_diarias_${System.currentTimeMillis()}"
+                        val file = when (format) {
+                            ExportFormat.PDF -> exportadorService.exportarRelatorioParaPDF(relatorio, fileName)
+                            ExportFormat.XLSX -> exportadorService.exportarRelatorioParaXLSX(relatorio, fileName)
+                        }
+
+                        // Compartilhar o arquivo
+                        compartilharArquivo(file)
+                    } else {
+                        _uiState.update { it.copy(
+                            isExporting = false,
+                            erro = "Nenhum relatório disponível para exportar"
+                        ) }
+                    }
+                } catch (e: Exception) {
+                    _uiState.update { it.copy(
+                        isExporting = false,
+                        erro = "Erro ao exportar relatório: ${e.message}"
+                    ) }
+                } finally {
+                    _uiState.update { it.copy(isExporting = false, exportFormat = null) }
+                }
             }
         }
-    }
     private fun shareFile(file: File) {
         // Implementar compartilhamento do arquivo
         val uri = FileProvider.getUriForFile(
@@ -166,6 +179,17 @@ class RelatorioViewModel @Inject constructor(
     }
     private fun clearMessages() {
         _uiState.update { it.copy(error = null) }
+    }
+    sealed class RelatorioEvent{
+        data class OnDataInicioChange(val dataInicio: String): RelatorioEvent()
+        data class OnDataFimChange(val dataFim: String): RelatorioEvent()
+        data class OnTransportadoraSelected(val transportadoraId: String?): RelatorioEvent()
+        data class OnVeiculoSelected(val matricula: String?) : RelatorioEvent()
+        data class OnMotoristaSelected(val motoristaId: String?) : RelatorioEvent()
+        object OnGerarRelatorio : RelatorioEvent()
+        data class OnExportarRelatorio(val format: ExportFormat) : RelatorioEvent()
+        object ClearMessages : RelatorioEvent()
+
     }
 }
 

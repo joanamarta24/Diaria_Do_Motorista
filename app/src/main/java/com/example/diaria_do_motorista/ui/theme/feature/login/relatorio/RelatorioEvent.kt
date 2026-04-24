@@ -1,6 +1,6 @@
 package com.example.diaria_do_motorista.ui.theme.feature.login.relatorio
 
-import com.example.diaria_do_motorista.data.db.remote.enums.ExportFormat
+import ExportFormat
 
 sealed class RelatorioEvent {
     data class OnDataInicioChange(val dataInicio: String): RelatorioEvent()
