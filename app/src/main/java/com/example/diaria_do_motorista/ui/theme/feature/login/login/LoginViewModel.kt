@@ -1,17 +1,18 @@
+package com.example.diaria_do_motorista.ui.theme.feature.login.login
+
 import android.app.Application
-import android.provider.Settings.Global.putString
+import android.content.Context
+import android.preference.PreferenceManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.diaria_do_motorista.data.db.domain.Usuario
+import com.diaria_do_motorista.network.NetworkMonitor
 import com.example.diaria_do_motorista.data.db.repository.AuthRepository
-import com.example.diaria_do_motorista.ui.theme.feature.login.login.LoginFormState
-import com.example.diaria_do_motorista.ui.theme.feature.login.login.LoginScreenState
 import com.example.diaria_do_motorista.ui.theme.feature.login.loginsealed.LoginUiState
 import com.example.diaria_do_motorista.util.DispatchersProvider
+import com.example.diarias.feature.login.LoginEvent
 import com.seuapp.network.NetworkMonitor
-import dagger.hilt.android.internal.Contexts.getApplication
 import dagger.hilt.android.lifecycle.HiltViewModel
-import jakarta.inject.Inject
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -21,12 +22,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val networkMonitor: NetworkMonitor,
-    private val dispatchers: DispatchersProvider
+    private val dispatchers: DispatchersProvider,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _screenState = MutableStateFlow(LoginScreenState())
@@ -39,6 +42,7 @@ class LoginViewModel @Inject constructor(
 
     init {
         monitorNetworkState()
+        loadSavedCredentials()
     }
 
     private fun monitorNetworkState() {
@@ -63,6 +67,12 @@ class LoginViewModel @Inject constructor(
             LoginEvent.OnLogin -> onLogin()
             LoginEvent.OnRegister -> onRegister()
             LoginEvent.OnForgotPassword -> onForgotPassword()
+            LoginEvent.ClearErrors -> clearError()
+            LoginEvent.ResetForm -> resetState()
+            LoginEvent.OnBiometricLogin -> onBiometricLogin()
+            LoginEvent.OnBiometricSuccess -> onBiometricSuccess()
+            is LoginEvent.OnBiometricError -> onBiometricError(event.errorMessage)
+            else -> {} // Para outros eventos não tratados
         }
     }
 
@@ -72,6 +82,7 @@ class LoginViewModel @Inject constructor(
             emailError = validateEmail(email)
         )
         updateFormState(newFormState)
+        clearUiError()
     }
 
     private fun onPasswordChange(password: String) {
@@ -80,19 +91,23 @@ class LoginViewModel @Inject constructor(
             passwordError = validatePassword(password)
         )
         updateFormState(newFormState)
+        clearUiError()
     }
 
     private fun onToggleLoginMode() {
-        val currentState = _screenState.value.formState
+        val currentFormState = _screenState.value.formState
+        val isCurrentlyLogin = currentFormState.isLoginMode
+        val willBeLogin = !isCurrentlyLogin
+
         _screenState.update { state ->
             state.copy(
                 formState = state.formState.copy(
-                    isLoginMode = !state.formState.isLoginMode,
-                    email = if (!state.formState.isLoginMode) state.formState.email else "",
-                    password = if (!state.formState.isLoginMode) state.formState.password else "",
-                    registrationName = if (state.formState.isLoginMode) "" else state.formState.registrationName,
-                    registrationPhone = if (state.formState.isLoginMode) "" else state.formState.registrationPhone,
-                    registrationConfirmPassword = if (state.formState.isLoginMode) "" else state.formState.registrationConfirmPassword,
+                    isLoginMode = willBeLogin,
+                    email = currentFormState.email,
+                    password = currentFormState.password,
+                    registrationName = if (willBeLogin) "" else currentFormState.registrationName,
+                    registrationPhone = if (willBeLogin) "" else currentFormState.registrationPhone,
+                    registrationConfirmPassword = if (willBeLogin) "" else currentFormState.registrationConfirmPassword,
                     emailError = null,
                     passwordError = null,
                     nameError = null,
@@ -170,8 +185,8 @@ class LoginViewModel @Inject constructor(
         val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
         return when {
             phone.isBlank() -> "Telefone é obrigatório"
-            cleanPhone.length < 10 -> "Telefone inválido"
-            cleanPhone.length > 11 -> "Telefone inválido"
+            cleanPhone.length < 10 -> "Telefone inválido (mínimo 10 dígitos)"
+            cleanPhone.length > 11 -> "Telefone inválido (máximo 11 dígitos)"
             else -> null
         }
     }
@@ -302,15 +317,30 @@ class LoginViewModel @Inject constructor(
 
             val formState = _screenState.value.formState
 
-            // Determinar se é cadastro de administrador ou motorista
-            // Por padrão, primeiro cadastro será administrador
-            val result = withContext(dispatchers.io) {
-                authRepository.cadastrarAdministrador(
-                    nome = formState.registrationName,
-                    email = formState.email,
-                    telefone = formState.registrationPhone,
-                    senha = formState.password
-                )
+            // Verificar se é o primeiro usuário do sistema
+            val isFirstUser = checkIfFirstUser()
+
+            val result = if (isFirstUser) {
+                withContext(dispatchers.io) {
+                    authRepository.cadastrarAdministrador(
+                        nome = formState.registrationName,
+                        email = formState.email,
+                        telefone = formState.registrationPhone,
+                        senha = formState.password
+                    )
+                }
+            } else {
+                withContext(dispatchers.io) {
+                    authRepository.cadastrarMotorista(
+                        nome = formState.registrationName,
+                        email = formState.email,
+                        telefone = formState.registrationPhone,
+                        dataNascimento = "", // Será preenchido depois
+                        matriculaVeiculo = null,
+                        transportadoraId = null,
+                        senha = formState.password
+                    )
+                }
             }
 
             result.fold(
@@ -334,6 +364,14 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    private suspend fun checkIfFirstUser(): Boolean {
+        return withContext(dispatchers.io) {
+            // Verificar se já existe algum usuário cadastrado
+            val usuarios = authRepository.getAllUsuarios()
+            usuarios.isEmpty()
+        }
+    }
+
     private fun onForgotPassword() {
         viewModelScope.launch {
             _loginEvent.emit(LoginEvent.OnForgotPasswordClicked)
@@ -341,31 +379,35 @@ class LoginViewModel @Inject constructor(
     }
 
     private suspend fun saveUserCredentials(email: String, password: String) {
-        // Salvar credenciais no DataStore ou SharedPreferences
         withContext(dispatchers.io) {
-            // Implementar salvamento seguro das credenciais
-            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(
-                getApplication<Application>()
-            )
-            prefs.edit().apply {
-                putString("saved_email", email)
-                putString("saved_password", password)
-                putBoolean("remember_me", true)
-                apply()
+            try {
+                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                prefs.edit().apply {
+                    putString("saved_email", email)
+                    putString("saved_password", password)
+                    putBoolean("remember_me", true)
+                    apply()
+                }
+            } catch (e: Exception) {
+                // Log error
+                e.printStackTrace()
             }
         }
     }
 
     private suspend fun clearUserCredentials() {
         withContext(dispatchers.io) {
-            val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(
-                getApplication<Application>()
-            )
-            prefs.edit().apply {
-                remove("saved_email")
-                remove("saved_password")
-                putBoolean("remember_me", false)
-                apply()
+            try {
+                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                prefs.edit().apply {
+                    remove("saved_email")
+                    remove("saved_password")
+                    putBoolean("remember_me", false)
+                    apply()
+                }
+            } catch (e: Exception) {
+                // Log error
+                e.printStackTrace()
             }
         }
     }
@@ -373,25 +415,28 @@ class LoginViewModel @Inject constructor(
     fun loadSavedCredentials() {
         viewModelScope.launch {
             withContext(dispatchers.io) {
-                val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(
-                    getApplication<Application>()
-                )
-                val rememberMe = prefs.getBoolean("remember_me", false)
-                if (rememberMe) {
-                    val savedEmail = prefs.getString("saved_email", "") ?: ""
-                    val savedPassword = prefs.getString("saved_password", "") ?: ""
+                try {
+                    val prefs = PreferenceManager.getDefaultSharedPreferences(context)
+                    val rememberMe = prefs.getBoolean("remember_me", false)
+                    if (rememberMe) {
+                        val savedEmail = prefs.getString("saved_email", "") ?: ""
+                        val savedPassword = prefs.getString("saved_password", "") ?: ""
 
-                    _screenState.update { state ->
-                        state.copy(
-                            rememberMe = true,
-                            formState = state.formState.copy(
-                                email = savedEmail,
-                                password = savedPassword
-                            )
-                        )
+                        if (savedEmail.isNotBlank() && savedPassword.isNotBlank()) {
+                            _screenState.update { state ->
+                                state.copy(
+                                    rememberMe = true,
+                                    formState = state.formState.copy(
+                                        email = savedEmail,
+                                        password = savedPassword
+                                    )
+                                )
+                            }
+                            validateForm()
+                        }
                     }
-
-                    validateForm()
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
@@ -407,31 +452,48 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    private fun clearUiError() {
+        if (_screenState.value.uiState is LoginUiState.Error) {
+            _screenState.update { it.copy(uiState = LoginUiState.Idle) }
+        }
+    }
+
     fun resetState() {
         _screenState.update { state ->
             state.copy(
                 formState = LoginFormState(),
                 uiState = LoginUiState.Idle,
                 rememberMe = false,
-                showPassword = false
+                showPassword = false,
+                isOfflineMode = state.isOfflineMode
             )
         }
     }
-}
 
-sealed class LoginEvent {
-    data class OnEmailChange(val email: String) : LoginEvent()
-    data class OnPasswordChange(val password: String) : LoginEvent()
-    object OnToggleLoginMode : LoginEvent()
-    data class OnRegistrationNameChange(val name: String) : LoginEvent()
-    data class OnRegistrationPhoneChange(val phone: String) : LoginEvent()
-    data class OnRegistrationConfirmPasswordChange(val confirmPassword: String) : LoginEvent()
-    object OnToggleRememberMe : LoginEvent()
-    object OnToggleShowPassword : LoginEvent()
-    object OnLogin : LoginEvent()
-    object OnRegister : LoginEvent()
-    object OnForgotPassword : LoginEvent()
-    data class OnLoginSuccess(val usuario: Usuario) : LoginEvent()
-    data class OnRegistrationSuccess(val usuario: Usuario) : LoginEvent()
-    object OnForgotPasswordClicked : LoginEvent()
+    private fun onBiometricLogin() {
+        viewModelScope.launch {
+            _loginEvent.emit(LoginEvent.OnBiometricLogin)
+        }
+    }
+
+    private fun onBiometricSuccess() {
+        viewModelScope.launch {
+            // Carregar credenciais e fazer login automático
+            loadSavedCredentials()
+            val formState = _screenState.value.formState
+            if (formState.email.isNotBlank() && formState.password.isNotBlank()) {
+                onLogin()
+            }
+        }
+    }
+
+    private fun onBiometricError(errorMessage: String) {
+        viewModelScope.launch {
+            _screenState.update { state ->
+                state.copy(
+                    uiState = LoginUiState.Error(errorMessage)
+                )
+            }
+        }
+    }
 }

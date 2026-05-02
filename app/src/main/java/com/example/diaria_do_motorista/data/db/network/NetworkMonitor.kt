@@ -1,4 +1,4 @@
-package com.seuapp.network
+package com.diaria_do_motorista.network
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -6,15 +6,19 @@ import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.os.Build
+import com.example.diaria_do_motorista.data.db.network.NetworkState
 import com.example.diaria_do_motorista.data.db.remote.enums.NetworkSpeed
 import com.example.diaria_do_motorista.data.db.remote.enums.connection.ConnectionType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -28,6 +32,8 @@ class NetworkMonitor @Inject constructor(
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     }
 
+    // ============== IMPLEMENTAÇÃO COM STATE_FLOW (Para estado atual) ==============
+
     private val _networkState = MutableStateFlow<NetworkState>(NetworkState.Unknown)
     val networkState: StateFlow<NetworkState> = _networkState.asStateFlow()
 
@@ -35,7 +41,7 @@ class NetworkMonitor @Inject constructor(
     val connectionType: StateFlow<ConnectionType> = _connectionType.asStateFlow()
 
     private val _isConnected = MutableStateFlow(false)
-    val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
+    val isConnectedState: StateFlow<Boolean> = _isConnected.asStateFlow()
 
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
@@ -221,19 +227,50 @@ class NetworkMonitor @Inject constructor(
             // Ignorar exceções ao desregistrar
         }
     }
-}
 
-sealed class NetworkState {
-    object Unknown : NetworkState()
-    object Disconnected : NetworkState()
-    sealed class Connected : NetworkState() {
-        object WiFi : Connected()
-        object Cellular : Connected()
-        object Ethernet : Connected()
-        object VPN : Connected()
-        object Other : Connected()
+    // ============== IMPLEMENTAÇÃO COM CALLBACK_FLOW (Para observação contínua) ==============
+
+    val isConnected: Flow<Boolean> = callbackFlow {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        val flowCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                trySend(true)
+                // Atualiza também o StateFlow para manter consistência
+                scope.launch { updateNetworkState() }
+            }
+
+            override fun onLost(network: Network) {
+                trySend(false)
+                // Atualiza também o StateFlow para manter consistência
+                scope.launch { updateNetworkState() }
+            }
+
+            override fun onCapabilitiesChanged(
+                network: Network,
+                networkCapabilities: NetworkCapabilities
+            ) {
+                val isInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                trySend(isInternet)
+                // Atualiza também o StateFlow para manter consistência
+                scope.launch { updateNetworkState() }
+            }
+        }
+
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+
+        connectivityManager.registerNetworkCallback(request, flowCallback)
+
+        // Enviar estado inicial
+        val activeNetwork = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val isConnected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) ?: false
+        trySend(isConnected)
+
+        awaitClose {
+            connectivityManager.unregisterNetworkCallback(flowCallback)
+        }
     }
 }
-
-
-

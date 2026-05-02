@@ -53,4 +53,9 @@ sealed class LoginEvent {
 
 
     data class OnBiometricError(val errorMessage: String) : LoginEvent()
+
+    object OnBiometricCancel : LoginEvent()
+}
+
+
 }
