@@ -90,7 +90,10 @@ fun AppNavGraph(
         // Relatórios
         composable(Routes.Relatorios.route) {
             val viewModel: RelatorioViewModel = hiltViewModel()
-            RelatorioScreen(viewModel = viewModel)
+            RelatorioScreen(
+                viewModel = viewModel,
+                modifier = TODO()
+            )
         }
     }
 }

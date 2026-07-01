@@ -56,6 +56,3 @@ sealed class LoginEvent {
 
     object OnBiometricCancel : LoginEvent()
 }
-
-
-}

@@ -49,7 +49,7 @@ dependencies {
     implementation("androidx.datastore:datastore-preferences:1.1.0")
     // Preference (para SharedPreferences)
     implementation("androidx.preference:preference-ktx:1.2.1")
-    // Para autenticação biométrica (opcional)
+    // Para autenticação biométrica (Biometria)
     implementation("androidx.biometric:biometric:1.1.0")
 
 
@@ -66,6 +66,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.runtime:runtime-livedata")
+    implementation("androidx.compose.foundation:foundation")
 
     // Navigation Compose
     implementation("androidx.navigation:navigation-compose:2.8.1")

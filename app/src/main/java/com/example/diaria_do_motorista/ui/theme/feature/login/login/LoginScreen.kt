@@ -17,15 +17,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation.Companion.keyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -50,6 +55,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -163,7 +169,7 @@ fun LoginSree(
                     Box(
                         modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
-                    ){
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Business,
                             contentDescription = "Logo",
@@ -194,39 +200,39 @@ fun LoginSree(
                     colors = CardDefaults.cardColors(
                         containerColor = MaterialTheme.colorScheme.surface
                     )
-                )  {
+                ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                    //INDICADOR DE MODO OFFLINE
-                    if (isOfflineMode) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.errorContainer,
-                            tonalElevation = 2.dp
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ){
-                                Icon(
-                                    imageVector = Icons.Default.WifiOff,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer
-                                )
-                                Text(
-                                    text = "Modo offline - Você pode acessar dados salvos localmente",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onErrorContainer
-                                )
+                        //INDICADOR DE MODO OFFLINE
+                        if (isOfflineMode) {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                tonalElevation = 2.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.WifiOff,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Text(
+                                        text = "Modo offline - Você pode acessar dados salvos localmente",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
                             }
                         }
-                    }
                         //CAMPO DE EMAIL
                         OutlinedTextField(
                             value = formState.email,
@@ -235,7 +241,7 @@ fun LoginSree(
                             modifier = Modifier.fillMaxWidth(),
                             isError = formState.emailError != null,
                             supportingText = {
-                                if (formState.emailError != null){
+                                if (formState.emailError != null) {
                                     Text(
                                         text = formState.emailError!!,
                                         style = MaterialTheme.typography.bodySmall,
@@ -260,11 +266,79 @@ fun LoginSree(
                                 errorLabelColor = MaterialTheme.colorScheme.error
                             )
                         )
-                     //CAMPO DE SENHA
+                        //CAMPO DE SENHA
+                        OutlinedTextField(
+                            value = formState.password,
+                            onValueChange = { viewModel.handleEvent(LoginEvent.OnPasswordChange(it)) },
+                            label = { Text("Senha") },
+                            modifier = Modifier.fillMaxWidth(),
+                            isError = formState.passwordError != null,
+                            supportingText = {
+                                if (formState.passwordError != null) {
+                                    Text(
+                                        text = formState.passwordError!!,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            },
+                            leadingIcon = {
+                                Icon(Icons.Default.Lock, contentDescription = null)
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { viewModel.handleEvent(LoginEvent.onToggleShowPassword) }
+                                ) {
+                                    Icon(
+                                        if (screenState.showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (screenState.showPassword) "Ocultar senha" else "Mostrar senha"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (screenState.showPassword) visualTransformation.None else PasswordVisualTransformation(),
+                            singleLine = true,
+                            keyboardOptions = keyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = if (isLoginMode) ImeAction.Done else ImeAction.Next
 
+                            ),
+                            keyboardOptions = keyboardOptions(
+                                onDone = {
+                                    if (isLoginMode) {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                        viewModel.handleEvent(LoginEvent.OnLogin)
+                                    }
+                                }
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                errorLabelColor = MaterialTheme.colorScheme.error,
+                                errorBorderColor = MaterialTheme.colorScheme.error
+                            )
+
+                        )
+                       //CAMPOS ADICIONAIS PARA CADASTRO
+                        if (isLoginMode){
+                            //NOME COMPLETO
+                            OutlinedTextField(
+                                value = formState.registrationName,
+                                onValueChange = { viewModel.handleEvent(LoginEvent.OnRegistrationNameChange(it)) },
+                                label = {Text("Nome Completo")},
+                                modifier = Modifier.fillMaxWidth(),
+                                isError = formState.nameError != null,
+                                supportingText = {
+                                    if (formState.nameError != null) {
+                                        Text(
+                                            text = formState.nameError!!,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
 
                 }
-
             }
         }
     }
