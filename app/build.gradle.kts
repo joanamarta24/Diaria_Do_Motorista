@@ -52,6 +52,11 @@ dependencies {
     // Para autenticação biométrica (Biometria)
     implementation("androidx.biometric:biometric:1.1.0")
 
+    // Biometria
+    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+// Security (para EncryptedSharedPreferences)
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("androidx.lifecycle:lifecycle-runtime-compose")
@@ -120,6 +125,7 @@ dependencies {
     implementation(libs.androidx.adapters)
     implementation(libs.androidx.hilt.common)
     implementation(libs.firebase.appdistribution.gradle)
+    implementation(libs.androidx.compose.material3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -8,10 +8,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.diaria_do_motorista.data.db.session.AuthStateViewModel
+import com.example.diaria_do_motorista.feature.login.LoginViewModel
 import com.example.diaria_do_motorista.ui.theme.feature.login.home.HomeScreen
 import com.example.diaria_do_motorista.ui.theme.feature.login.home.HomeViewModel
 import com.example.diaria_do_motorista.ui.theme.feature.login.login.LoginScreen
-import com.example.diaria_do_motorista.ui.theme.feature.login.login.LoginViewModel
 import com.example.diaria_do_motorista.ui.theme.feature.login.relatorio.RelatorioScreen
 import com.example.diaria_do_motorista.ui.theme.feature.login.relatorio.RelatorioViewModel
 import com.example.diaria_do_motorista.ui.theme.feature.login.usuario.edit.UsuarioEditScreen

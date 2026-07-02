@@ -1,4 +1,4 @@
-package com.example.diaria_do_motorista.ui.theme.feature.login.loginsealed
+package com.example.diaria_do_motorista.feature.login.states
 
 import com.example.diaria_do_motorista.data.db.domain.Usuario
 

@@ -1,18 +1,22 @@
-package com.example.diaria_do_motorista.ui.theme.feature.login.login
+package com.example.diaria_do_motorista.feature.login
 
-import android.app.Application
 import android.content.Context
-import android.preference.PreferenceManager
+import android.util.Patterns
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.diaria_do_motorista.network.NetworkMonitor
+import com.example.diaria_do_motorista.data.db.domain.Usuario
+import com.example.diaria_do_motorista.data.db.preferences.SecurePreferences
 import com.example.diaria_do_motorista.data.db.repository.AuthRepository
-import com.example.diaria_do_motorista.ui.theme.feature.login.loginsealed.LoginUiState
+import com.example.diaria_do_motorista.feature.login.events.LoginEvent
+import com.example.diaria_do_motorista.feature.login.states.LoginFormState
+import com.example.diaria_do_motorista.feature.login.states.LoginScreenState
+import com.example.diaria_do_motorista.feature.login.states.LoginUiState
 import com.example.diaria_do_motorista.util.DispatchersProvider
-import com.example.diarias.feature.login.LoginEvent
-import com.seuapp.network.NetworkMonitor
+import com.example.diaria_do_motorista.util.biometric.BiometricHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,6 +33,8 @@ class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val networkMonitor: NetworkMonitor,
     private val dispatchers: DispatchersProvider,
+    private val securePreferences: SecurePreferences,
+    private val biometricHelper: BiometricHelper,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -39,80 +45,206 @@ class LoginViewModel @Inject constructor(
     val loginEvent: SharedFlow<LoginEvent> = _loginEvent.asSharedFlow()
 
     private var isNetworkAvailable = false
+    private var networkMonitorJob: Job? = null
+    private var biometricCheckJob: Job? = null
+    private var loadCredentialsJob: Job? = null
 
     init {
         monitorNetworkState()
         loadSavedCredentials()
+        checkBiometricAvailability()
     }
 
+    // ========== INICIALIZAÇÃO ==========
+
     private fun monitorNetworkState() {
-        viewModelScope.launch {
+        networkMonitorJob = viewModelScope.launch {
             networkMonitor.isConnected.collect { isConnected ->
                 isNetworkAvailable = isConnected
-                _screenState.update { it.copy(isOfflineMode = !isConnected) }
+                _screenState.update {
+                    it.copy(
+                        isOfflineMode = !isConnected,
+                        uiState = if (!isConnected && _screenState.value.uiState is LoginUiState.Loading) {
+                            LoginUiState.Error("Sem conexão com a internet")
+                        } else {
+                            _screenState.value.uiState
+                        }
+                    )
+                }
             }
         }
     }
+
+    private fun loadSavedCredentials() {
+        loadCredentialsJob = viewModelScope.launch {
+            withContext(dispatchers.io) {
+                val credentials = securePreferences.getCredentials()
+                if (credentials != null) {
+                    _screenState.update { state ->
+                        state.copy(
+                            rememberMe = true,
+                            formState = state.formState.copy(
+                                email = credentials.first,
+                                password = credentials.second
+                            )
+                        )
+                    }
+                    validateForm()
+                }
+            }
+        }
+    }
+
+    private fun checkBiometricAvailability() {
+        biometricCheckJob = viewModelScope.launch {
+            try {
+                if (!biometricHelper.isBiometricSupportedByOS()) {
+                    _screenState.update {
+                        it.copy(
+                            biometricAvailable = false,
+                            biometricErrorMessage = "Seu dispositivo não suporta biometria"
+                        )
+                    }
+                    return@launch
+                }
+
+                val availability = withContext(dispatchers.main) {
+                    biometricHelper.isBiometricAvailable()
+                }
+
+                _screenState.update { state ->
+                    state.copy(
+                        biometricAvailable = availability.isAvailable,
+                        biometricIsEnrolled = availability.isEnrolled,
+                        biometricHasHardware = availability.hasHardware,
+                        biometricErrorMessage = availability.errorMessage
+                    )
+                }
+
+            } catch (e: Exception) {
+                _screenState.update {
+                    it.copy(
+                        biometricAvailable = false,
+                        biometricErrorMessage = "Erro ao verificar biometria: ${e.message}"
+                    )
+                }
+            }
+        }
+    }
+
+    // ========== HANDLE EVENTS ==========
 
     fun handleEvent(event: LoginEvent) {
         when (event) {
             is LoginEvent.OnEmailChange -> onEmailChange(event.email)
             is LoginEvent.OnPasswordChange -> onPasswordChange(event.password)
-            is LoginEvent.OnToggleLoginMode -> onToggleLoginMode()
             is LoginEvent.OnRegistrationNameChange -> onRegistrationNameChange(event.name)
             is LoginEvent.OnRegistrationPhoneChange -> onRegistrationPhoneChange(event.phone)
             is LoginEvent.OnRegistrationConfirmPasswordChange -> onRegistrationConfirmPasswordChange(event.confirmPassword)
-            is LoginEvent.OnToggleRememberMe -> onToggleRememberMe()
-            is LoginEvent.OnToggleShowPassword -> onToggleShowPassword()
+            is LoginEvent.OnRegistrationDateOfBirthChange -> onRegistrationDateOfBirthChange(event.dateOfBirth)
+            is LoginEvent.OnRegistrationVehiclePlateChange -> onRegistrationVehiclePlateChange(event.plate)
+
+            LoginEvent.OnToggleLoginMode -> onToggleLoginMode()
+            LoginEvent.OnToggleRememberMe -> onToggleRememberMe()
+            LoginEvent.OnToggleShowPassword -> onToggleShowPassword()
+
             LoginEvent.OnLogin -> onLogin()
             LoginEvent.OnRegister -> onRegister()
             LoginEvent.OnForgotPassword -> onForgotPassword()
             LoginEvent.ClearErrors -> clearError()
             LoginEvent.ResetForm -> resetState()
             LoginEvent.OnBiometricLogin -> onBiometricLogin()
-            LoginEvent.OnBiometricSuccess -> onBiometricSuccess()
+
             is LoginEvent.OnBiometricError -> onBiometricError(event.errorMessage)
-            else -> {} // Para outros eventos não tratados
+            is LoginEvent.OnError -> handleError(event.message)
+            else -> {}
         }
     }
 
+    // ========== HANDLERS DE EVENTOS DE UI ==========
+
     private fun onEmailChange(email: String) {
-        val newFormState = _screenState.value.formState.copy(
+        val error = validateEmail(email)
+        updateFormField(
             email = email,
-            emailError = validateEmail(email)
+            emailError = error
         )
-        updateFormState(newFormState)
-        clearUiError()
+        validateForm()
+        clearErrorIfNeeded()
     }
 
     private fun onPasswordChange(password: String) {
-        val newFormState = _screenState.value.formState.copy(
+        val error = validatePassword(password)
+        updateFormField(
             password = password,
-            passwordError = validatePassword(password)
+            passwordError = error
         )
-        updateFormState(newFormState)
-        clearUiError()
+        validateForm()
+        clearErrorIfNeeded()
+    }
+
+    private fun onRegistrationNameChange(name: String) {
+        val error = validateName(name)
+        updateFormField(
+            registrationName = name,
+            nameError = error
+        )
+        validateForm()
+    }
+
+    private fun onRegistrationPhoneChange(phone: String) {
+        val error = validatePhone(phone)
+        updateFormField(
+            registrationPhone = phone,
+            phoneError = error
+        )
+        validateForm()
+    }
+
+    private fun onRegistrationConfirmPasswordChange(confirmPassword: String) {
+        val currentPassword = _screenState.value.formState.password
+        val error = validateConfirmPassword(currentPassword, confirmPassword)
+        updateFormField(
+            registrationConfirmPassword = confirmPassword,
+            confirmPasswordError = error
+        )
+        validateForm()
+    }
+
+    private fun onRegistrationDateOfBirthChange(dateOfBirth: String) {
+        val error = validateDateOfBirth(dateOfBirth)
+        updateFormField(
+            registrationDateOfBirth = dateOfBirth,
+            dateOfBirthError = error
+        )
+        validateForm()
+    }
+
+    private fun onRegistrationVehiclePlateChange(plate: String) {
+        val error = validateVehiclePlate(plate)
+        updateFormField(
+            registrationVehiclePlate = plate,
+            vehiclePlateError = error
+        )
+        validateForm()
     }
 
     private fun onToggleLoginMode() {
-        val currentFormState = _screenState.value.formState
-        val isCurrentlyLogin = currentFormState.isLoginMode
-        val willBeLogin = !isCurrentlyLogin
-
         _screenState.update { state ->
+            val isLogin = state.formState.isLoginMode
             state.copy(
                 formState = state.formState.copy(
-                    isLoginMode = willBeLogin,
-                    email = currentFormState.email,
-                    password = currentFormState.password,
-                    registrationName = if (willBeLogin) "" else currentFormState.registrationName,
-                    registrationPhone = if (willBeLogin) "" else currentFormState.registrationPhone,
-                    registrationConfirmPassword = if (willBeLogin) "" else currentFormState.registrationConfirmPassword,
-                    emailError = null,
-                    passwordError = null,
+                    isLoginMode = !isLogin,
+                    registrationName = "",
+                    registrationPhone = "",
+                    registrationConfirmPassword = "",
+                    registrationDateOfBirth = "",
+                    registrationVehiclePlate = "",
                     nameError = null,
                     phoneError = null,
-                    confirmPasswordError = null
+                    confirmPasswordError = null,
+                    dateOfBirthError = null,
+                    vehiclePlateError = null
                 ),
                 uiState = LoginUiState.Idle
             )
@@ -120,34 +252,14 @@ class LoginViewModel @Inject constructor(
         validateForm()
     }
 
-    private fun onRegistrationNameChange(name: String) {
-        val newFormState = _screenState.value.formState.copy(
-            registrationName = name,
-            nameError = validateName(name)
-        )
-        updateFormState(newFormState)
-    }
-
-    private fun onRegistrationPhoneChange(phone: String) {
-        val newFormState = _screenState.value.formState.copy(
-            registrationPhone = phone,
-            phoneError = validatePhone(phone)
-        )
-        updateFormState(newFormState)
-    }
-
-    private fun onRegistrationConfirmPasswordChange(confirmPassword: String) {
-        val currentPassword = _screenState.value.formState.password
-        val newFormState = _screenState.value.formState.copy(
-            registrationConfirmPassword = confirmPassword,
-            confirmPasswordError = validateConfirmPassword(currentPassword, confirmPassword)
-        )
-        updateFormState(newFormState)
-    }
-
     private fun onToggleRememberMe() {
         _screenState.update { state ->
             state.copy(rememberMe = !state.rememberMe)
+        }
+        if (!_screenState.value.rememberMe) {
+            viewModelScope.launch {
+                clearUserCredentials()
+            }
         }
     }
 
@@ -157,10 +269,230 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    // ========== AÇÕES PRINCIPAIS ==========
+
+    private fun onLogin() {
+        val formState = _screenState.value.formState
+        val uiState = _screenState.value.uiState
+
+        if (uiState is LoginUiState.Loading) return
+
+        validateForm()
+        if (!formState.isFormValid) {
+            setError("Por favor, preencha todos os campos corretamente")
+            return
+        }
+
+        if (!isNetworkAvailable) {
+            setError("Sem conexão com a internet. Verifique sua rede.")
+            return
+        }
+
+        viewModelScope.launch {
+            setLoading(true)
+
+            val result = withContext(dispatchers.io) {
+                authRepository.login(
+                    email = formState.email.trim(),
+                    password = formState.password
+                )
+            }
+
+            result.fold(
+                onSuccess = { usuario ->
+                    handleLoginSuccess(usuario)
+                },
+                onFailure = { error ->
+                    handleLoginError(error)
+                }
+            )
+        }
+    }
+
+    private fun onRegister() {
+        val formState = _screenState.value.formState
+        val uiState = _screenState.value.uiState
+
+        if (uiState is LoginUiState.Loading) return
+
+        validateForm()
+        if (!formState.isFormValid) {
+            setError("Por favor, preencha todos os campos corretamente")
+            return
+        }
+
+        if (!isNetworkAvailable) {
+            setError("Sem conexão com a internet. Verifique sua rede.")
+            return
+        }
+
+        viewModelScope.launch {
+            setLoading(true)
+
+            val isFirstUser = withContext(dispatchers.io) {
+                authRepository.isFirstUser()
+            }
+
+            val result = if (isFirstUser) {
+                withContext(dispatchers.io) {
+                    authRepository.cadastrarAdministrador(
+                        nome = formState.registrationName.trim(),
+                        email = formState.email.trim(),
+                        telefone = formState.registrationPhone.trim(),
+                        dataNascimento = formState.registrationDateOfBirth,
+                        senha = formState.password
+                    )
+                }
+            } else {
+                withContext(dispatchers.io) {
+                    authRepository.cadastrarMotorista(
+                        nome = formState.registrationName.trim(),
+                        email = formState.email.trim(),
+                        telefone = formState.registrationPhone.trim(),
+                        dataNascimento = formState.registrationDateOfBirth,
+                        matriculaVeiculo = formState.registrationVehiclePlate.trim().ifEmpty { null },
+                        transportadoraId = null,
+                        senha = formState.password
+                    )
+                }
+            }
+
+            result.fold(
+                onSuccess = { usuario ->
+                    handleRegistrationSuccess(usuario)
+                },
+                onFailure = { error ->
+                    handleRegistrationError(error)
+                }
+            )
+        }
+    }
+
+    private fun onForgotPassword() {
+        val email = _screenState.value.formState.email
+        if (email.isBlank()) {
+            setError("Digite seu e-mail para recuperar a senha")
+            return
+        }
+
+        viewModelScope.launch {
+            _loginEvent.emit(LoginEvent.OnForgotPasswordClicked(email))
+        }
+    }
+
+    private fun onBiometricLogin() {
+        if (!_screenState.value.biometricAvailable) {
+            setError("Biometria não disponível. Use e-mail e senha.")
+            return
+        }
+
+        viewModelScope.launch {
+            _loginEvent.emit(LoginEvent.OnBiometricLogin)
+        }
+    }
+
+    private fun onBiometricLoginSuccess() {
+        viewModelScope.launch {
+            try {
+                val credentials = withContext(dispatchers.io) {
+                    securePreferences.getCredentials()
+                }
+
+                if (credentials == null) {
+                    setError("Credenciais não encontradas. Faça login manualmente.")
+                    return@launch
+                }
+
+                val (email, password) = credentials
+
+                _screenState.update { state ->
+                    state.copy(
+                        formState = state.formState.copy(
+                            email = email,
+                            password = password
+                        )
+                    )
+                }
+
+                validateForm()
+                if (_screenState.value.formState.isFormValid) {
+                    onLogin()
+                } else {
+                    setError("Credenciais inválidas. Faça login manualmente.")
+                }
+
+            } catch (e: Exception) {
+                setError("Erro ao fazer login biométrico: ${e.message}")
+            }
+        }
+    }
+
+    private fun onBiometricError(errorMessage: String) {
+        val friendlyMessage = when {
+            errorMessage.contains("cancel", ignoreCase = true) -> "Autenticação cancelada"
+            errorMessage.contains("lockout", ignoreCase = true) -> "Muitas tentativas. Aguarde."
+            errorMessage.contains("failed", ignoreCase = true) -> "Falha na autenticação. Tente novamente."
+            else -> errorMessage
+        }
+        setError(friendlyMessage)
+    }
+
+    private fun handleError(message: String) {
+        setError(message)
+    }
+
+    // ========== HANDLERS DE RESULTADOS ==========
+
+    private suspend fun handleLoginSuccess(usuario: Usuario) {
+        setLoading(false)
+        _screenState.update { state ->
+            state.copy(uiState = LoginUiState.Success(usuario))
+        }
+
+        if (_screenState.value.rememberMe) {
+            saveUserCredentials(
+                email = _screenState.value.formState.email,
+                password = _screenState.value.formState.password
+            )
+        }
+
+        _loginEvent.emit(LoginEvent.OnLoginSuccess(usuario))
+    }
+
+    private suspend fun handleLoginError(error: Throwable) {
+        setLoading(false)
+        val message = when {
+            error.message?.contains("401") == true -> "E-mail ou senha incorretos"
+            error.message?.contains("404") == true -> "Usuário não encontrado"
+            else -> error.message ?: "Erro ao fazer login. Tente novamente."
+        }
+        setError(message)
+    }
+
+    private suspend fun handleRegistrationSuccess(usuario: Usuario) {
+        setLoading(false)
+        _screenState.update { state ->
+            state.copy(uiState = LoginUiState.Success(usuario))
+        }
+        _loginEvent.emit(LoginEvent.OnRegistrationSuccess(usuario))
+    }
+
+    private suspend fun handleRegistrationError(error: Throwable) {
+        setLoading(false)
+        val message = when {
+            error.message?.contains("email already exists") == true -> "Este e-mail já está cadastrado"
+            error.message?.contains("unique constraint") == true -> "Dados já cadastrados"
+            else -> error.message ?: "Erro ao realizar cadastro. Tente novamente."
+        }
+        setError(message)
+    }
+
+    // ========== VALIDAÇÕES ==========
+
     private fun validateEmail(email: String): String? {
         return when {
             email.isBlank() -> "E-mail é obrigatório"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "E-mail inválido"
+            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "E-mail inválido"
             else -> null
         }
     }
@@ -182,7 +514,7 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun validatePhone(phone: String): String? {
-        val cleanPhone = phone.replace("[^0-9]".toRegex(), "")
+        val cleanPhone = phone.replace(Regex("[^0-9]"), "")
         return when {
             phone.isBlank() -> "Telefone é obrigatório"
             cleanPhone.length < 10 -> "Telefone inválido (mínimo 10 dígitos)"
@@ -199,262 +531,131 @@ class LoginViewModel @Inject constructor(
         }
     }
 
+    private fun validateDateOfBirth(dateOfBirth: String): String? {
+        return when {
+            dateOfBirth.isBlank() -> "Data de nascimento é obrigatória"
+            !isValidDate(dateOfBirth) -> "Data inválida (formato: DD/MM/AAAA)"
+            else -> null
+        }
+    }
+
+    private fun validateVehiclePlate(plate: String): String? {
+        if (plate.isBlank()) return null
+        val cleanPlate = plate.uppercase().replace(Regex("[^A-Z0-9]"), "")
+        return when {
+            cleanPlate.isNotEmpty() && cleanPlate.length !in 7..8 -> "Placa inválida"
+            else -> null
+        }
+    }
+
+    private fun isValidDate(date: String): Boolean {
+        return try {
+            val pattern = java.text.SimpleDateFormat("dd/MM/yyyy", java.util.Locale.getDefault())
+            pattern.isLenient = false
+            pattern.parse(date)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // ========== MÉTODOS DE FORMULÁRIO ==========
+
     private fun validateForm() {
-        val formState = _screenState.value.formState
+        val state = _screenState.value
+        val form = state.formState
 
-        val isValid = if (formState.isLoginMode) {
-            formState.emailError == null &&
-                    formState.passwordError == null &&
-                    formState.email.isNotBlank() &&
-                    formState.password.isNotBlank()
+        val isValid = if (form.isLoginMode) {
+            form.email.isNotBlank() &&
+                    form.password.isNotBlank() &&
+                    form.emailError == null &&
+                    form.passwordError == null
         } else {
-            formState.emailError == null &&
-                    formState.passwordError == null &&
-                    formState.nameError == null &&
-                    formState.phoneError == null &&
-                    formState.confirmPasswordError == null &&
-                    formState.email.isNotBlank() &&
-                    formState.password.isNotBlank() &&
-                    formState.registrationName.isNotBlank() &&
-                    formState.registrationPhone.isNotBlank() &&
-                    formState.registrationConfirmPassword.isNotBlank()
+            form.email.isNotBlank() &&
+                    form.password.isNotBlank() &&
+                    form.registrationName.isNotBlank() &&
+                    form.registrationPhone.isNotBlank() &&
+                    form.registrationConfirmPassword.isNotBlank() &&
+                    form.registrationDateOfBirth.isNotBlank() &&
+                    form.emailError == null &&
+                    form.passwordError == null &&
+                    form.nameError == null &&
+                    form.phoneError == null &&
+                    form.confirmPasswordError == null &&
+                    form.dateOfBirthError == null &&
+                    form.vehiclePlateError == null
         }
 
-        updateFormState(formState.copy(isFormValid = isValid))
+        updateFormField(isFormValid = isValid)
     }
 
-    private fun updateFormState(formState: LoginFormState) {
+    private fun updateFormField(vararg fields: Pair<String, Any?>) {
         _screenState.update { state ->
-            state.copy(formState = formState)
+            var newForm = state.formState
+            fields.forEach { (key, value) ->
+                when (key) {
+                    "email" -> newForm = newForm.copy(email = value as String)
+                    "password" -> newForm = newForm.copy(password = value as String)
+                    "registrationName" -> newForm = newForm.copy(registrationName = value as String)
+                    "registrationPhone" -> newForm = newForm.copy(registrationPhone = value as String)
+                    "registrationConfirmPassword" -> newForm = newForm.copy(registrationConfirmPassword = value as String)
+                    "registrationDateOfBirth" -> newForm = newForm.copy(registrationDateOfBirth = value as String)
+                    "registrationVehiclePlate" -> newForm = newForm.copy(registrationVehiclePlate = value as String)
+                    "emailError" -> newForm = newForm.copy(emailError = value as? String)
+                    "passwordError" -> newForm = newForm.copy(passwordError = value as? String)
+                    "nameError" -> newForm = newForm.copy(nameError = value as? String)
+                    "phoneError" -> newForm = newForm.copy(phoneError = value as? String)
+                    "confirmPasswordError" -> newForm = newForm.copy(confirmPasswordError = value as? String)
+                    "dateOfBirthError" -> newForm = newForm.copy(dateOfBirthError = value as? String)
+                    "vehiclePlateError" -> newForm = newForm.copy(vehiclePlateError = value as? String)
+                    "isFormValid" -> newForm = newForm.copy(isFormValid = value as Boolean)
+                }
+            }
+            state.copy(formState = newForm)
         }
     }
 
-    private fun onLogin() {
-        validateForm()
+    // ========== ESTADO DE UI ==========
 
-        if (!_screenState.value.formState.isFormValid) {
-            _screenState.update { state ->
-                state.copy(
-                    uiState = LoginUiState.Error("Por favor, preencha todos os campos corretamente")
-                )
-            }
-            return
-        }
-
-        if (!isNetworkAvailable) {
-            _screenState.update { state ->
-                state.copy(
-                    uiState = LoginUiState.Error("Sem conexão com a internet. Verifique sua rede.")
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _screenState.update { state ->
-                state.copy(uiState = LoginUiState.Loading)
-            }
-
-            val email = _screenState.value.formState.email
-            val password = _screenState.value.formState.password
-
-            val result = withContext(dispatchers.io) {
-                authRepository.login(email, password)
-            }
-
-            result.fold(
-                onSuccess = { usuario ->
-                    _screenState.update { state ->
-                        state.copy(uiState = LoginUiState.Success(usuario))
-                    }
-
-                    if (_screenState.value.rememberMe) {
-                        saveUserCredentials(email, password)
-                    } else {
-                        clearUserCredentials()
-                    }
-
-                    _loginEvent.emit(LoginEvent.OnLoginSuccess(usuario))
-                },
-                onFailure = { error ->
-                    _screenState.update { state ->
-                        state.copy(
-                            uiState = LoginUiState.Error(
-                                error.message ?: "Erro ao fazer login. Tente novamente."
-                            )
-                        )
-                    }
-                }
+    private fun setLoading(isLoading: Boolean) {
+        _screenState.update { state ->
+            state.copy(
+                isLoading = isLoading,
+                uiState = if (isLoading) LoginUiState.Loading else LoginUiState.Idle
             )
         }
     }
 
-    private fun onRegister() {
-        validateForm()
-
-        if (!_screenState.value.formState.isFormValid) {
-            _screenState.update { state ->
-                state.copy(
-                    uiState = LoginUiState.Error("Por favor, preencha todos os campos corretamente")
-                )
-            }
-            return
-        }
-
-        if (!isNetworkAvailable) {
-            _screenState.update { state ->
-                state.copy(
-                    uiState = LoginUiState.Error("Sem conexão com a internet. Verifique sua rede.")
-                )
-            }
-            return
-        }
-
-        viewModelScope.launch {
-            _screenState.update { state ->
-                state.copy(uiState = LoginUiState.Loading)
-            }
-
-            val formState = _screenState.value.formState
-
-            // Verificar se é o primeiro usuário do sistema
-            val isFirstUser = checkIfFirstUser()
-
-            val result = if (isFirstUser) {
-                withContext(dispatchers.io) {
-                    authRepository.cadastrarAdministrador(
-                        nome = formState.registrationName,
-                        email = formState.email,
-                        telefone = formState.registrationPhone,
-                        senha = formState.password
-                    )
-                }
-            } else {
-                withContext(dispatchers.io) {
-                    authRepository.cadastrarMotorista(
-                        nome = formState.registrationName,
-                        email = formState.email,
-                        telefone = formState.registrationPhone,
-                        dataNascimento = "", // Será preenchido depois
-                        matriculaVeiculo = null,
-                        transportadoraId = null,
-                        senha = formState.password
-                    )
-                }
-            }
-
-            result.fold(
-                onSuccess = { usuario ->
-                    _screenState.update { state ->
-                        state.copy(uiState = LoginUiState.Success(usuario))
-                    }
-
-                    _loginEvent.emit(LoginEvent.OnRegistrationSuccess(usuario))
-                },
-                onFailure = { error ->
-                    _screenState.update { state ->
-                        state.copy(
-                            uiState = LoginUiState.Error(
-                                error.message ?: "Erro ao realizar cadastro. Tente novamente."
-                            )
-                        )
-                    }
-                }
-            )
-        }
-    }
-
-    private suspend fun checkIfFirstUser(): Boolean {
-        return withContext(dispatchers.io) {
-            // Verificar se já existe algum usuário cadastrado
-            val usuarios = authRepository.getAllUsuarios()
-            usuarios.isEmpty()
-        }
-    }
-
-    private fun onForgotPassword() {
-        viewModelScope.launch {
-            _loginEvent.emit(LoginEvent.OnForgotPasswordClicked)
-        }
-    }
-
-    private suspend fun saveUserCredentials(email: String, password: String) {
-        withContext(dispatchers.io) {
-            try {
-                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-                prefs.edit().apply {
-                    putString("saved_email", email)
-                    putString("saved_password", password)
-                    putBoolean("remember_me", true)
-                    apply()
-                }
-            } catch (e: Exception) {
-                // Log error
-                e.printStackTrace()
-            }
-        }
-    }
-
-    private suspend fun clearUserCredentials() {
-        withContext(dispatchers.io) {
-            try {
-                val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-                prefs.edit().apply {
-                    remove("saved_email")
-                    remove("saved_password")
-                    putBoolean("remember_me", false)
-                    apply()
-                }
-            } catch (e: Exception) {
-                // Log error
-                e.printStackTrace()
-            }
-        }
-    }
-
-    fun loadSavedCredentials() {
-        viewModelScope.launch {
-            withContext(dispatchers.io) {
-                try {
-                    val prefs = PreferenceManager.getDefaultSharedPreferences(context)
-                    val rememberMe = prefs.getBoolean("remember_me", false)
-                    if (rememberMe) {
-                        val savedEmail = prefs.getString("saved_email", "") ?: ""
-                        val savedPassword = prefs.getString("saved_password", "") ?: ""
-
-                        if (savedEmail.isNotBlank() && savedPassword.isNotBlank()) {
-                            _screenState.update { state ->
-                                state.copy(
-                                    rememberMe = true,
-                                    formState = state.formState.copy(
-                                        email = savedEmail,
-                                        password = savedPassword
-                                    )
-                                )
-                            }
-                            validateForm()
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
-        }
-    }
-
-    fun clearError() {
+    private fun setError(message: String) {
         _screenState.update { state ->
-            if (state.uiState is LoginUiState.Error) {
-                state.copy(uiState = LoginUiState.Idle)
-            } else {
-                state
-            }
+            state.copy(uiState = LoginUiState.Error(message))
         }
     }
 
-    private fun clearUiError() {
+    private fun clearErrorIfNeeded() {
         if (_screenState.value.uiState is LoginUiState.Error) {
             _screenState.update { it.copy(uiState = LoginUiState.Idle) }
+        }
+    }
+
+    /**
+     * Limpa todos os erros do formulário e da UI
+     */
+    fun clearError() {
+        _screenState.update { state ->
+            state.copy(
+                uiState = LoginUiState.Idle,
+                formState = state.formState.copy(
+                    emailError = null,
+                    passwordError = null,
+                    nameError = null,
+                    phoneError = null,
+                    confirmPasswordError = null,
+                    dateOfBirthError = null,
+                    vehiclePlateError = null
+                ),
+                biometricErrorMessage = null
+            )
         }
     }
 
@@ -465,35 +666,63 @@ class LoginViewModel @Inject constructor(
                 uiState = LoginUiState.Idle,
                 rememberMe = false,
                 showPassword = false,
-                isOfflineMode = state.isOfflineMode
+                isLoading = false
             )
         }
     }
 
-    private fun onBiometricLogin() {
-        viewModelScope.launch {
-            _loginEvent.emit(LoginEvent.OnBiometricLogin)
+    // ========== GERENCIAMENTO DE CREDENCIAIS ==========
+
+    private suspend fun saveUserCredentials(email: String, password: String) {
+        withContext(dispatchers.io) {
+            securePreferences.saveCredentials(email, password)
         }
     }
 
-    private fun onBiometricSuccess() {
-        viewModelScope.launch {
-            // Carregar credenciais e fazer login automático
-            loadSavedCredentials()
-            val formState = _screenState.value.formState
-            if (formState.email.isNotBlank() && formState.password.isNotBlank()) {
-                onLogin()
-            }
+    private suspend fun clearUserCredentials() {
+        withContext(dispatchers.io) {
+            securePreferences.clearCredentials()
         }
     }
 
-    private fun onBiometricError(errorMessage: String) {
-        viewModelScope.launch {
-            _screenState.update { state ->
-                state.copy(
-                    uiState = LoginUiState.Error(errorMessage)
-                )
+    // ========== CLEANUP ==========
+
+    /**
+     * Limpa todos os recursos quando o ViewModel é destruído
+     *
+     * O que é limpo:
+     * - Jobs de corrotinas (network, biometric, credentials)
+     * - Estados do formulário
+     * - Credenciais temporárias
+     * - Fluxos e coletores
+     */
+    override fun onCleared() {
+        super.onCleared()
+
+        // 1. Cancelar todos os Jobs
+        networkMonitorJob?.cancel()
+        networkMonitorJob = null
+
+        biometricCheckJob?.cancel()
+        biometricCheckJob = null
+
+        loadCredentialsJob?.cancel()
+        loadCredentialsJob = null
+
+        // 2. Limpar estados (opcional - depende do caso de uso)
+        // resetState()
+
+        // 3. Limpar credenciais se não estiver "remember me"
+        if (!_screenState.value.rememberMe) {
+            viewModelScope.launch {
+                clearUserCredentials()
             }
         }
+
+        // 4. Fechar recursos se necessário
+        // (ex: fechar conexões de banco de dados, cancelar operações em andamento)
+
+        // 5. Log para debug
+        android.util.Log.d("LoginViewModel", "ViewModel destroyed and resources cleaned up")
     }
 }
